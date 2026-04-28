@@ -8,13 +8,13 @@ function hashPassword(password: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const { name, email, password, bannerImage } = await request.json();
-  
-  if (!name || !email || !password) {
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
-  }
-  
   try {
+    const { name, email, password, bannerImage } = await request.json();
+    
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    }
+    
     const club = await createClub(name, email, hashPassword(password), bannerImage);
     
     const response = NextResponse.json({ success: true, club });
@@ -26,10 +26,11 @@ export async function POST(request: NextRequest) {
     
     return response;
   } catch (err: any) {
+    console.error('Signup error:', err);
     if (err.message?.includes('duplicate') || err.code === '23505') {
       return NextResponse.json({ error: 'Email or club name already exists' }, { status: 400 });
     }
-    throw err;
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
