@@ -8,27 +8,14 @@ function hashPassword(password: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('Signup called');
-  console.log('Env check:', {
-    URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'set' : 'MISSING',
-    KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'set' : 'MISSING'
-  });
-  
   try {
-    const body = await request.json();
-    console.log('Request body:', { name: body.name, email: body.email });
-    
-    const { name, email, password, bannerImage } = body;
+    const { name, email, password, bannerImage } = await request.json();
     
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
     
-    const hashedPassword = hashPassword(password);
-    console.log('Password hashed, length:', hashedPassword.length);
-    
-    const club = await createClub(name, email, hashedPassword, bannerImage);
-    console.log('Club created:', club.id);
+    const club = await createClub(name, email, hashPassword(password), bannerImage);
     
     const response = NextResponse.json({ success: true, club });
     response.cookies.set('club_session', club.id.toString(), {
@@ -40,12 +27,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (err: any) {
     console.error('Signup error:', err);
-    console.error('Error message:', err.message);
-    console.error('Error code:', err.code);
-    if (err.message?.includes('duplicate') || err.code === '23505') {
-      return NextResponse.json({ error: 'Email or club name already exists' }, { status: 400 });
-    }
-    return NextResponse.json({ error: 'Server error: ' + err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Signup failed' }, { status: 500 });
   }
 }
 
