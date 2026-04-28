@@ -15,7 +15,7 @@ export async function createClub(name: string, email: string, passwordHash: stri
   
   const { data, error } = await supabase
     .from('clubs')
-    .insert({ name, slug, email, password_hash: bannerImage || null })
+    .insert({ name, slug, email, password_hash: passwordHash })
     .select()
     .single();
   
