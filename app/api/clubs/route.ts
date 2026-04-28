@@ -27,10 +27,14 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (err: any) {
     console.error('Signup error:', err);
+    console.error('Error details:', err.stack || err.toString());
     if (err.message?.includes('duplicate') || err.code === '23505') {
       return NextResponse.json({ error: 'Email or club name already exists' }, { status: 400 });
     }
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    if (err.message?.includes('Missing Supabase credentials')) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
+    }
+    return NextResponse.json({ error: err.message || 'Unknown error' }, { status: 500 });
   }
 }
 
