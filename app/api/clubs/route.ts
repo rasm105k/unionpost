@@ -8,14 +8,27 @@ function hashPassword(password: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('Signup called');
+  console.log('Env check:', {
+    URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'set' : 'MISSING',
+    KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'set' : 'MISSING'
+  });
+  
   try {
-    const { name, email, password, bannerImage } = await request.json();
+    const body = await request.json();
+    console.log('Request body:', { name: body.name, email: body.email });
+    
+    const { name, email, password, bannerImage } = body;
     
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
     
-    const club = await createClub(name, email, hashPassword(password), bannerImage);
+    const hashedPassword = hashPassword(password);
+    console.log('Password hashed, length:', hashedPassword.length);
+    
+    const club = await createClub(name, email, hashedPassword, bannerImage);
+    console.log('Club created:', club.id);
     
     const response = NextResponse.json({ success: true, club });
     response.cookies.set('club_session', club.id.toString(), {
@@ -27,14 +40,12 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (err: any) {
     console.error('Signup error:', err);
-    console.error('Error details:', err.stack || err.toString());
+    console.error('Error message:', err.message);
+    console.error('Error code:', err.code);
     if (err.message?.includes('duplicate') || err.code === '23505') {
       return NextResponse.json({ error: 'Email or club name already exists' }, { status: 400 });
     }
-    if (err.message?.includes('Missing Supabase credentials')) {
-      return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
-    }
-    return NextResponse.json({ error: err.message || 'Unknown error' }, { status: 500 });
+    return NextResponse.json({ error: 'Server error: ' + err.message }, { status: 500 });
   }
 }
 
