@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   }
   
   try {
-    const club = createClub(name, email, hashPassword(password), bannerImage);
+    const club = await createClub(name, email, hashPassword(password), bannerImage);
     
     const response = NextResponse.json({ success: true, club });
     response.cookies.set('club_session', club.id.toString(), {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     
     return response;
   } catch (err: any) {
-    if (err.message?.includes('UNIQUE constraint')) {
+    if (err.message?.includes('duplicate') || err.code === '23505') {
       return NextResponse.json({ error: 'Email or club name already exists' }, { status: 400 });
     }
     throw err;
@@ -42,7 +42,7 @@ export async function PATCH(request: NextRequest) {
   }
   
   const { bannerImage } = await request.json();
-  updateBannerImage(parseInt(sessionId), bannerImage);
+  await updateBannerImage(parseInt(sessionId), bannerImage);
   
   return NextResponse.json({ success: true });
 }
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing slug' }, { status: 400 });
   }
   
-  const club = getClubBySlug(slug);
+  const club = await getClubBySlug(slug);
   if (!club) {
     return NextResponse.json({ error: 'Club not found' }, { status: 404 });
   }

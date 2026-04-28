@@ -1,4 +1,4 @@
-import { db } from './db';
+import { supabase } from './supabase';
 
 export interface Match {
   id: number;
@@ -21,54 +21,72 @@ export interface Standings {
   goals_against: number;
 }
 
-export function createMatch(clubId: number, opponent: string, clubScore: number, opponentScore: number, playedAt: string) {
-  const stmt = db.prepare(
-    'INSERT INTO matches (club_id, opponent, club_score, opponent_score, played_at) VALUES (?, ?, ?, ?, ?)'
-  );
-  const result = stmt.run(clubId, opponent, clubScore, opponentScore, playedAt);
+export async function createMatch(
+  clubId: number,
+  opponent: string,
+  clubScore: number,
+  opponentScore: number,
+  playedAt: string
+) {
+  const { data, error } = await supabase
+    .from('matches')
+    .insert({
+      club_id: clubId,
+      opponent,
+      club_score: clubScore,
+      opponent_score: opponentScore,
+      played_at: playedAt,
+    })
+    .select()
+    .single();
   
-  updateStandingsFromMatch(clubId);
+  if (error) throw error;
   
-  return { id: result.lastInsertRowid };
+  await updateStandingsFromMatch(clubId);
+  
+  return { id: data.id };
 }
 
-export function getMatches(clubId: number): Match[] {
-  return db.prepare(
-    'SELECT * FROM matches WHERE club_id = ? ORDER BY played_at DESC'
-  ).all(clubId) as Match[];
+export async function getMatches(clubId: number): Promise<Match[]> {
+  const { data } = await supabase
+    .from('matches')
+    .select('*')
+    .eq('club_id', clubId)
+    .order('played_at', { ascending: false });
+  return data || [];
 }
 
-export function getStandings(clubId: number): Standings | undefined {
-  return db.prepare('SELECT * FROM standings WHERE club_id = ?').get(clubId) as Standings | undefined;
+export async function getStandings(clubId: number): Promise<Standings | null> {
+  const { data } = await supabase
+    .from('standings')
+    .select('*')
+    .eq('club_id', clubId)
+    .single();
+  return data;
 }
 
-export function updateStandings(clubId: number, data: Partial<Standings>) {
-  const current = getStandings(clubId);
+export async function updateStandings(
+  clubId: number,
+  data: Partial<Standings>
+) {
+  const current = await getStandings(clubId);
   if (!current) return;
   
-  const stmt = db.prepare(`
-    UPDATE standings 
-    SET played = COALESCE(?, played),
-        won = COALESCE(?, won),
-        drawn = COALESCE(?, drawn),
-        lost = COALESCE(?, lost),
-        goals_for = COALESCE(?, goals_for),
-        goals_against = COALESCE(?, goals_against)
-    WHERE club_id = ?
-  `);
-  stmt.run(
-    data.played ?? current.played,
-    data.won ?? current.won,
-    data.drawn ?? current.drawn,
-    data.lost ?? current.lost,
-    data.goals_for ?? current.goals_for,
-    data.goals_against ?? current.goals_against,
-    clubId
-  );
+  await supabase
+    .from('standings')
+    .update({
+      played: data.played ?? current.played,
+      won: data.won ?? current.won,
+      drawn: data.drawn ?? current.drawn,
+      lost: data.lost ?? current.lost,
+      goals_for: data.goals_for ?? current.goals_for,
+      goals_against: data.goals_against ?? current.goals_against,
+    })
+    .eq('club_id', clubId);
 }
 
-function updateStandingsFromMatch(clubId: number) {
-  const matches = getMatches(clubId);
+async function updateStandingsFromMatch(clubId: number) {
+  const matches = await getMatches(clubId);
   
   let played = 0, won = 0, drawn = 0, lost = 0, gf = 0, ga = 0;
   
@@ -82,5 +100,5 @@ function updateStandingsFromMatch(clubId: number) {
     else drawn++;
   }
   
-  updateStandings(clubId, { played, won, drawn, lost, goals_for: gf, goals_against: ga });
+  await updateStandings(clubId, { played, won, drawn, lost, goals_for: gf, goals_against: ga });
 }

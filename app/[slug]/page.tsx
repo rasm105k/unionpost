@@ -11,14 +11,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function ClubPage({ params }: PageProps) {
   const { slug } = await params;
-  const club = getClubBySlug(slug);
+  const club = await getClubBySlug(slug);
   
   if (!club) {
     notFound();
   }
   
-  const matches = getMatches(club.id);
-  const standings = getStandings(club.id);
+  const matches = await getMatches(club.id);
+  const standings = await getStandings(club.id);
   const points = standings ? (standings.won * 3) + standings.drawn : 0;
 
   return (

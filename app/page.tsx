@@ -4,8 +4,8 @@ import { getClubs } from '@/lib/club';
 
 export const dynamic = 'force-dynamic';
 
-export default function Home() {
-  const clubs = getClubs();
+export default async function Home() {
+  const clubs = await getClubs();
 
   return (
     <div className="min-h-screen bg-white">

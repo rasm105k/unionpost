@@ -14,13 +14,13 @@ export default async function Dashboard() {
     redirect('/login');
   }
   
-  const club = getClubById(parseInt(sessionId));
+  const club = await getClubById(parseInt(sessionId));
   if (!club) {
     redirect('/login');
   }
   
-  const matches = getMatches(club.id);
-  const standings = getStandings(club.id);
+  const matches = await getMatches(club.id);
+  const standings = await getStandings(club.id);
   const points = standings ? (standings.won * 3) + standings.drawn : 0;
 
   return (

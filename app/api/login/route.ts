@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
   
-  const club = verifyClub(email, hashPassword(password));
+  const club = await verifyClub(email, hashPassword(password));
   
   if (!club) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });

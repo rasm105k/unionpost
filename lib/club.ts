@@ -1,4 +1,4 @@
-import { db, createSlug } from './db';
+import { supabase, createSlug } from './supabase';
 
 export interface Club {
   id: number;
@@ -10,33 +10,60 @@ export interface Club {
   created_at: string;
 }
 
-export function createClub(name: string, email: string, passwordHash: string, bannerImage?: string) {
+function getSupabase() {
+  if (!supabase) {
+    throw new Error('Database not configured');
+  }
+  return supabase;
+}
+
+export async function createClub(name: string, email: string, passwordHash: string, bannerImage?: string) {
   const slug = createSlug(name);
-  const stmt = db.prepare('INSERT INTO clubs (name, slug, email, password_hash, banner_image) VALUES (?, ?, ?, ?, ?)');
-  const result = stmt.run(name, slug, email, passwordHash, bannerImage || null);
+  const db = getSupabase();
   
-  const id = Number(result.lastInsertRowid);
-  db.prepare('INSERT INTO standings (club_id) VALUES (?)').run(id);
+  const { data, error } = await db
+    .from('clubs')
+    .insert({ name, slug, email, password_hash: bannerImage || null })
+    .select()
+    .single();
   
-  return { id, name, slug, email, banner_image: bannerImage || null };
+  if (error) throw error;
+  
+  await db.from('standings').insert({ club_id: data.id });
+  
+  return { id: data.id, name: data.name, slug: data.slug, email: data.email, banner_image: data.banner_image };
 }
 
-export function getClubs(): Club[] {
-  return db.prepare('SELECT id, name, slug, email, banner_image, created_at FROM clubs ORDER BY name').all() as Club[];
+export async function getClubs(): Promise<Club[]> {
+  const db = getSupabase();
+  const { data } = await db.from('clubs').select('*').order('name');
+  return data || [];
 }
 
-export function getClubBySlug(slug: string): Club | undefined {
-  return db.prepare('SELECT * FROM clubs WHERE slug = ?').get(slug) as Club | undefined;
+export async function getClubBySlug(slug: string): Promise<Club | null> {
+  const db = getSupabase();
+  const { data } = await db.from('clubs').select('*').eq('slug', slug).single();
+  return data;
 }
 
-export function getClubById(id: number): Club | undefined {
-  return db.prepare('SELECT * FROM clubs WHERE id = ?').get(id) as Club | undefined;
+export async function getClubById(id: number): Promise<Club | null> {
+  const db = getSupabase();
+  const { data } = await db.from('clubs').select('*').eq('id', id).single();
+  return data;
 }
 
-export function verifyClub(email: string, passwordHash: string): Club | undefined {
-  return db.prepare('SELECT * FROM clubs WHERE email = ? AND password_hash = ?').get(email, passwordHash) as Club | undefined;
+export async function verifyClub(email: string, passwordHash: string): Promise<Club | null> {
+  const db = getSupabase();
+  const { data } = await db
+    .from('clubs')
+    .select('*')
+    .eq('email', email)
+    .eq('password_hash', passwordHash)
+    .single();
+  return data;
 }
 
-export function updateBannerImage(clubId: number, bannerImage: string) {
-  db.prepare('UPDATE clubs SET banner_image = ? WHERE id = ?').run(bannerImage, clubId);
+export async function updateBannerImage(clubId: number, bannerImage: string) {
+  const db = getSupabase();
+  await db.from('clubs').update({ banner_image: bannerImage }).eq('id', clubId);
 }

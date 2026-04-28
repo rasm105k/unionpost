@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
   
-  const match = createMatch(clubId, opponent, clubScore, opponentScore, playedAt);
+  const match = await createMatch(clubId, opponent, clubScore, opponentScore, playedAt);
   return NextResponse.json({ success: true, match });
 }
 
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing clubId' }, { status: 400 });
   }
   
-  const matches = getMatches(parseInt(clubId));
-  const standings = getStandings(parseInt(clubId));
+  const matches = await getMatches(parseInt(clubId));
+  const standings = await getStandings(parseInt(clubId));
   
   return NextResponse.json({ matches, standings });
 }
